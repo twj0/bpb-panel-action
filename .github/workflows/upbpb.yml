@@ -29,6 +29,7 @@ jobs:
           echo "TARGET_FILE=worker.zip" >> $GITHUB_ENV
 
       - name: 检查并更新 Worker
+        id: check_update
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 使用 GitHub Token 认证
         run: |
@@ -58,10 +59,15 @@ jobs:
           fi
           log "最新版本: $TAG_NAME"
 
+          # 设置输出变量供后续步骤使用
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "update_date=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_OUTPUT
+
           # 判断是否需要更新
           FORCE_UPDATE=${{ github.event.inputs.force_update || 'false' }}
           if [ "$LOCAL_VERSION" = "$TAG_NAME" ] && [ "$FORCE_UPDATE" != "true" ]; then
             log "已是最新版本，无需更新"
+            echo "updated=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -72,7 +78,79 @@ jobs:
           unzip -o "$TARGET_FILE"
           rm "$TARGET_FILE"
           echo "$TAG_NAME" > version.txt
+          echo "updated=true" >> $GITHUB_OUTPUT
           log "更新完成，新版本: $TAG_NAME"
+
+      - name: 更新 README.md
+        if: success() && steps.check_update.outputs.updated == 'true'
+        run: |
+          # 日志函数
+          log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+          
+          log "开始更新 README.md..."
+          
+          # 获取步骤输出变量
+          TAG_NAME="${{ steps.check_update.outputs.tag_name }}"
+          UPDATE_DATE="${{ steps.check_update.outputs.update_date }}"
+          
+          # 检查 README.md 是否存在
+          if [ ! -f "README.md" ]; then
+            log "创建新的 README.md 文件..."
+            cat > README.md << EOF
+# BPB Worker Panel 自动同步项目
+
+这个项目用于自动同步 BPB Worker Panel 的最新版本。
+
+## 项目信息
+- **源项目**: [bia-pain-bache/BPB-Worker-Panel](https://github.com/bia-pain-bache/BPB-Worker-Panel)
+- **同步状态**: ✅ 自动同步已启用
+- **最后更新**: ${UPDATE_DATE}
+- **当前版本**: ${TAG_NAME}
+
+## 功能特性
+- ✅ 自动检测新版本
+- ✅ 自动下载并更新 Worker 文件
+- ✅ 自动提交更改到仓库
+- ✅ 支持手动触发更新
+- ✅ 支持强制更新
+
+## 使用方法
+1. 确保在 GitHub Settings > Secrets and variables > Actions 中设置了 \`SYNC_TOKEN\`
+2. 工作流会自动在每天凌晨1点运行
+3. 也可以手动触发工作流进行即时更新
+
+## 更新日志
+- ${UPDATE_DATE}: 同步到版本 ${TAG_NAME}
+
+---
+*此文件由 GitHub Actions 自动生成和更新*
+EOF
+          else
+            log "更新现有的 README.md 文件..."
+            
+            # 更新最后更新时间和版本信息
+            sed -i "s/最后更新:.*/最后更新: ${UPDATE_DATE}/" README.md
+            sed -i "s/当前版本:.*/当前版本: ${TAG_NAME}/" README.md
+            
+            # 添加新的更新日志条目（限制日志条目数量，保持最近10条）
+            sed -i "/## 更新日志/a\\- ${UPDATE_DATE}: 同步到版本 ${TAG_NAME}" README.md
+            
+            # 保持更新日志在合理长度（保留最近10条）
+            log "清理旧的更新日志条目..."
+            # 获取更新日志部分的行号范围
+            START_LINE=$(grep -n "## 更新日志" README.md | cut -d: -f1)
+            END_LINE=$(tail -n +$((START_LINE + 1)) README.md | grep -n "^##\|^---" | head -1 | cut -d: -f1)
+            if [ -n "$END_LINE" ]; then
+              END_LINE=$((START_LINE + END_LINE - 1))
+            else
+              END_LINE=$(wc -l < README.md)
+            fi
+            
+            # 保留最近10条日志条目
+            sed -i "$((START_LINE + 1)),\$END_LINE{H;x;s/\n/~/g;s/[^~]*~/\n/10;s/~/\n/g;x;s/.*\n//;}" README.md 2>/dev/null || true
+          fi
+          
+          log "README.md 更新完成"
 
       - name: 提交更改
         if: success() # 仅在更新成功时提交
