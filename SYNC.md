@@ -48,7 +48,9 @@ GitHub Settings > Secrets and variables > Actions
   1. 进入 GitHub 仓库的 Actions 页面
   2. 选择 "Auto Update Worker" 工作流
   3. 点击 "Run workflow" 按钮
-  4. 可选择是否强制更新
+  4. 可选择输入 `force_update` 参数来强制更新（忽略版本检查）
+
+工作流支持手动启动，无需等待定时任务运行。
 
 ### 3. 工作流输出
 工作流会生成以下输出：

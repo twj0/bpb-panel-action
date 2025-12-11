@@ -137,17 +137,19 @@ EOF
             
             # 保持更新日志在合理长度（保留最近10条）
             log "清理旧的更新日志条目..."
-            # 获取更新日志部分的行号范围
+            # 简化处理：只保留更新日志部分的最后10行
+            TEMP_FILE=$(mktemp)
+            # 获取更新日志开始行号
             START_LINE=$(grep -n "## 更新日志" README.md | cut -d: -f1)
-            END_LINE=$(tail -n +$((START_LINE + 1)) README.md | grep -n "^##\|^---" | head -1 | cut -d: -f1)
-            if [ -n "$END_LINE" ]; then
-              END_LINE=$((START_LINE + END_LINE - 1))
-            else
-              END_LINE=$(wc -l < README.md)
-            fi
-            
-            # 保留最近10条日志条目
-            sed -i "$((START_LINE + 1)),\$END_LINE{H;x;s/\n/~/g;s/[^~]*~/\n/10;s/~/\n/g;x;s/.*\n//;}" README.md 2>/dev/null || true
+            # 提取更新日志部分（从开始到文件末尾或下一个标题）
+            tail -n +$((START_LINE + 1)) README.md > "$TEMP_FILE"
+            # 只保留最近10条日志（假设每条日志占一行）
+            tail -n 10 "$TEMP_FILE" > "$TEMP_FILE.new"
+            # 重新构建文件
+            head -n $START_LINE README.md > README.md.new
+            cat "$TEMP_FILE.new" >> README.md.new
+            mv README.md.new README.md
+            rm -f "$TEMP_FILE" "$TEMP_FILE.new"
           fi
           
           log "README.md 更新完成"
