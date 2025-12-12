@@ -79,6 +79,29 @@ GitHub Settings > Secrets and variables > Actions
 - `updated`: 是否执行了更新 (true/false)
 - `tag_name`: 最新版本标签
 - `update_date`: 更新时间戳
+- Cloudflare 部署状态（如果配置了相关密钥）
+
+### 4. 常见问题
+
+**Q: 工作流显示 "Working tree clean. Nothing to commit" 是什么意思？**
+A: 这是正常现象，表示：
+- 当前版本已经是最新的
+- 没有检测到新的 Worker 版本需要更新
+- 工作流正常运行，无需任何操作
+
+**Q: 如何验证工作流是否正常工作？**
+A: 可以通过以下方式验证：
+1. 检查 Actions 标签页中的工作流运行历史
+2. 查看最新的运行日志
+3. 确认 version.txt 中的版本号
+4. 手动触发工作流测试（使用 workflow_dispatch）
+
+**Q: Cloudflare 部署失败怎么办？**
+A: 检查以下配置：
+- 确认 CLOUDFLARE_API_TOKEN 权限正确
+- 验证 CLOUDFLARE_ACCOUNT_ID 是否正确
+- 查看部署步骤的详细错误日志
+- 确保 Worker 名称未被占用
 
 ## 📁 文件结构
 
