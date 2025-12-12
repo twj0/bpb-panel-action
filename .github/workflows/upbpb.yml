@@ -171,6 +171,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          UUID: ${{ secrets.UUID }}
+          TR_PASS: ${{ secrets.TR_PASS }}
         run: |
           # 日志函数
           log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
@@ -216,6 +218,17 @@ jobs:
           compatibility_date = "2024-01-01"
           account_id = "$CLOUDFLARE_ACCOUNT_ID"
           EOF
+
+          # 设置环境变量到 Cloudflare Workers
+          if [ -n "$UUID" ]; then
+            log "设置 UUID 环境变量..."
+            echo "$UUID" | wrangler secret put UUID
+          fi
+
+          if [ -n "$TR_PASS" ]; then
+            log "设置 TR_PASS 环境变量..."
+            echo "$TR_PASS" | wrangler secret put TR_PASS
+          fi
 
           # 部署 Worker
           log "部署 Worker 到 Cloudflare..."
