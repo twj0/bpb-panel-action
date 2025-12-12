@@ -52,6 +52,28 @@ GitHub Settings > Secrets and variables > Actions
 
 工作流支持手动启动，无需等待定时任务运行。
 
+### Cloudflare 自动部署配置
+为了实现 GitHub → Cloudflare 自动部署，需要额外配置：
+
+1. **获取 Cloudflare API Token**:
+   - 登录 Cloudflare 控制台
+   - 进入 My Profile → API Tokens
+   - 创建 Token，权限选择:
+     - `Cloudflare Workers:Edit`
+     - `Account:Read`
+
+2. **获取 Cloudflare Account ID**:
+   - 在 Cloudflare 控制台右侧边栏可以找到
+
+3. **配置 GitHub Secrets**:
+   在 GitHub Settings > Secrets and variables > Actions 中添加：
+   - `CLOUDFLARE_API_TOKEN`: 你的 Cloudflare API Token
+   - `CLOUDFLARE_ACCOUNT_ID`: 你的 Cloudflare Account ID
+
+4. **验证部署**:
+   - 工作流运行后，查看 Actions 日志中的部署步骤
+   - 确认 Cloudflare Worker 已成功更新
+
 ### 3. 工作流输出
 工作流会生成以下输出：
 - `updated`: 是否执行了更新 (true/false)

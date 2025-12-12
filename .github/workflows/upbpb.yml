@@ -161,3 +161,59 @@ jobs:
         with:
           commit_message: "🔄 自动同步 Worker 版本: ${{ steps.check_update.outputs.tag_name || '未知' }}"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+      - name: 部署到 Cloudflare Workers
+        if: success() && steps.check_update.outputs.updated == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 日志函数
+          log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
+          
+          log "开始部署到 Cloudflare Workers..."
+          
+          # 检查必要的密钥是否存在
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            log "ERROR: 未找到 CLOUDFLARE_API_TOKEN，请先在 GitHub Settings > Secrets and variables > Actions 中设置"
+            exit 1
+          fi
+          
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            log "ERROR: 未找到 CLOUDFLARE_ACCOUNT_ID，请先在 GitHub Settings > Secrets and variables > Actions 中设置"
+            exit 1
+          fi
+          
+          # 安装 Wrangler CLI
+          log "安装 Wrangler CLI..."
+          npm install -g wrangler
+          
+          # 配置 Wrangler
+          log "配置 Wrangler..."
+          wrangler config --api-token "$CLOUDFLARE_API_TOKEN"
+          
+          # 创建 wrangler.toml 配置文件
+          log "创建 wrangler.toml 配置文件..."
+          cat > wrangler.toml << EOF
+          name = "bpb-worker-panel"
+          main = "_worker.js"
+          compatibility_date = "2024-01-01"
+          
+          [env.production]
+          name = "bpb-worker-panel"
+          
+          [env.staging]
+          name = "bpb-worker-panel-staging"
+          EOF
+          
+          # 部署 Worker
+          log "部署 Worker 到 Cloudflare..."
+          wrangler deploy --env production
+          
+          if [ $? -eq 0 ]; then
+            log "✅ 成功部署到 Cloudflare Workers！"
+            log "Worker URL: https://bpb-worker-panel.your-subdomain.workers.dev"
+          else
+            log "❌ 部署失败，请检查错误信息"
+            exit 1
+          fi
