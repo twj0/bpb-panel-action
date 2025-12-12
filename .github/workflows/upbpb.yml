@@ -210,13 +210,29 @@ jobs:
           log "安装 Wrangler CLI..."
           npm install -g wrangler@latest
 
+          # 创建或获取 KV namespace
+          log "检查 KV namespace..."
+          KV_ID=$(wrangler kv:namespace list | grep '"title":"kv"' | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$KV_ID" ]; then
+            log "创建 KV namespace..."
+            KV_ID=$(wrangler kv:namespace create kv | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
+            log "✅ KV namespace 创建成功: $KV_ID"
+          else
+            log "✅ KV namespace 已存在: $KV_ID"
+          fi
+
           # 创建 wrangler.toml 配置文件
           log "创建 wrangler.toml 配置文件..."
           cat > wrangler.toml << EOF
-          name = "bpb-worker-panel"
+          name = "Panel-action"
           main = "_worker.js"
           compatibility_date = "2024-01-01"
           account_id = "$CLOUDFLARE_ACCOUNT_ID"
+
+          [[kv_namespaces]]
+          binding = "kv"
+          id = "$KV_ID"
           EOF
 
           # 设置环境变量到 Cloudflare Workers
