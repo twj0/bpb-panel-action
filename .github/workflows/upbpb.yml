@@ -212,11 +212,11 @@ jobs:
 
           # 创建或获取 KV namespace
           log "检查 KV namespace..."
-          KV_ID=$(wrangler kv:namespace list | grep '"title":"kv"' | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+          KV_ID=$(wrangler kv namespace list --account-id "$CLOUDFLARE_ACCOUNT_ID" --json | jq -r '.[] | select(.title == "kv") | .id' | head -n 1)
 
           if [ -z "$KV_ID" ]; then
             log "创建 KV namespace..."
-            KV_ID=$(wrangler kv:namespace create kv | grep -o 'id = "[^"]*"' | cut -d'"' -f2)
+            KV_ID=$(wrangler kv namespace create --binding=kv --account-id "$CLOUDFLARE_ACCOUNT_ID" --json | jq -r '.id')
             log "✅ KV namespace 创建成功: $KV_ID"
           else
             log "✅ KV namespace 已存在: $KV_ID"
@@ -225,7 +225,7 @@ jobs:
           # 创建 wrangler.toml 配置文件
           log "创建 wrangler.toml 配置文件..."
           cat > wrangler.toml << EOF
-          name = "Panel-action"
+          name = "panel-action"
           main = "_worker.js"
           compatibility_date = "2024-01-01"
           account_id = "$CLOUDFLARE_ACCOUNT_ID"
