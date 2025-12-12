@@ -14,7 +14,7 @@ on:
         default: 'false'
       force_deploy:
         description: '是否强制部署到 Cloudflare Workers'
-        required: ture
+        required: false
         default: 'true'
 
 permissions:
