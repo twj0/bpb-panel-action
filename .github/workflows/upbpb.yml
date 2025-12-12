@@ -35,7 +35,7 @@ jobs:
       - name: 检查并更新 Worker
         id: check_update
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 使用 GitHub Token 认证
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }} # 使用 GitHub Token 认证
         run: |
           # 日志函数
           log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"; }
