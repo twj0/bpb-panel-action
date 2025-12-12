@@ -176,17 +176,38 @@ jobs:
           # 检查必要的密钥是否存在
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             log "ERROR: 未找到 CLOUDFLARE_API_TOKEN，请先在 GitHub Settings > Secrets and variables > Actions 中设置"
+            log "请参考项目根目录的 check-deployment.md 文件获取详细配置说明"
             exit 1
           fi
           
           if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             log "ERROR: 未找到 CLOUDFLARE_ACCOUNT_ID，请先在 GitHub Settings > Secrets and variables > Actions 中设置"
+            log "请参考项目根目录的 check-deployment.md 文件获取详细配置说明"
             exit 1
+          fi
+          
+          # 验证 _worker.js 文件存在且有效
+          if [ ! -f "_worker.js" ]; then
+            log "ERROR: _worker.js 文件不存在，无法部署"
+            exit 1
+          fi
+          
+          # 检查文件大小（确保不是空文件）
+          FILE_SIZE=$(stat -c%s "_worker.js" 2>/dev/null || stat -f%z "_worker.js" 2>/dev/null || echo "0")
+          if [ "$FILE_SIZE" -lt 100 ]; then
+            log "WARNING: _worker.js 文件大小异常 ($FILE_SIZE 字节)，可能文件损坏或不完整"
+          else
+            log "✅ _worker.js 文件检查通过 (大小: $FILE_SIZE 字节)"
           fi
           
           # 安装 Wrangler CLI
           log "安装 Wrangler CLI..."
-          npm install -g wrangler
+          npm install -g wrangler@latest
+          
+          if [ $? -ne 0 ]; then
+            log "ERROR: Wrangler CLI 安装失败"
+            exit 1
+          fi
           
           # 配置 Wrangler
           log "配置 Wrangler..."
@@ -198,6 +219,7 @@ jobs:
           name = "bpb-worker-panel"
           main = "_worker.js"
           compatibility_date = "2024-01-01"
+          account_id = "$CLOUDFLARE_ACCOUNT_ID"
           
           [env.production]
           name = "bpb-worker-panel"
@@ -206,14 +228,30 @@ jobs:
           name = "bpb-worker-panel-staging"
           EOF
           
+          # 验证配置文件
+          log "验证 wrangler.toml 配置文件..."
+          if [ ! -f "wrangler.toml" ]; then
+            log "ERROR: wrangler.toml 配置文件创建失败"
+            exit 1
+          fi
+          
+          # 显示配置文件内容（调试用）
+          log "wrangler.toml 配置内容:"
+          cat wrangler.toml | sed 's/'"$CLOUDFLARE_ACCOUNT_ID"'/[ACCOUNT_ID_HIDDEN]/g'
+          
           # 部署 Worker
           log "部署 Worker 到 Cloudflare..."
-          wrangler deploy --env production
+          wrangler deploy --env production --verbose
           
-          if [ $? -eq 0 ]; then
+          DEPLOY_RESULT=$?
+          if [ $DEPLOY_RESULT -eq 0 ]; then
             log "✅ 成功部署到 Cloudflare Workers！"
             log "Worker URL: https://bpb-worker-panel.your-subdomain.workers.dev"
           else
-            log "❌ 部署失败，请检查错误信息"
+            log "❌ 部署失败 (错误码: $DEPLOY_RESULT)，请检查:"
+            log "1. Cloudflare API Token 权限是否正确"
+            log "2. Account ID 是否正确"
+            log "3. Worker 名称是否已被占用"
+            log "4. _worker.js 文件是否有效"
             exit 1
           fi
