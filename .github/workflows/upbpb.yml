@@ -210,13 +210,34 @@ jobs:
           log "安装 Wrangler CLI..."
           npm install -g wrangler@latest
 
-          # 创建或获取 KV namespace
+          # 使用 Cloudflare API 管理 KV namespace（wrangler 命令在不同版本间差异较大）
           log "检查 KV namespace..."
-          KV_ID=$(wrangler kv namespace list --account-id "$CLOUDFLARE_ACCOUNT_ID" --json | jq -r '.[] | select(.title == "kv") | .id' | head -n 1)
+          KV_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          if [ $? -ne 0 ] || [ -z "$KV_RESPONSE" ]; then
+            log "ERROR: 获取 KV namespace 列表失败"
+            exit 1
+          fi
 
-          if [ -z "$KV_ID" ]; then
+          KV_ID=$(echo "$KV_RESPONSE" | jq -r '.result[]? | select(.title == "kv") | .id' | head -n 1)
+
+          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
             log "创建 KV namespace..."
-            KV_ID=$(wrangler kv namespace create --binding=kv --account-id "$CLOUDFLARE_ACCOUNT_ID" --json | jq -r '.id')
+            CREATE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data '{"title":"kv"}')
+            if [ $? -ne 0 ] || [ -z "$CREATE_RESPONSE" ]; then
+              log "ERROR: 创建 KV namespace 失败"
+              exit 1
+            fi
+
+            KV_ID=$(echo "$CREATE_RESPONSE" | jq -r '.result.id')
+            if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
+              log "ERROR: 无法获取新建的 KV namespace ID"
+              exit 1
+            fi
             log "✅ KV namespace 创建成功: $KV_ID"
           else
             log "✅ KV namespace 已存在: $KV_ID"
