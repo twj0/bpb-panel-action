@@ -15,7 +15,7 @@ on:
       force_deploy:
         description: '是否强制部署到 Cloudflare Workers'
         required: false
-        default: 'false'
+        default: 'true'
 
 permissions:
   contents: write
