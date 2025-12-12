@@ -207,16 +207,7 @@ jobs:
           # 安装 Wrangler CLI
           log "安装 Wrangler CLI..."
           npm install -g wrangler@latest
-          
-          if [ $? -ne 0 ]; then
-            log "ERROR: Wrangler CLI 安装失败"
-            exit 1
-          fi
-          
-          # 配置 Wrangler
-          log "配置 Wrangler..."
-          wrangler config --api-token "$CLOUDFLARE_API_TOKEN"
-          
+
           # 创建 wrangler.toml 配置文件
           log "创建 wrangler.toml 配置文件..."
           cat > wrangler.toml << EOF
@@ -224,38 +215,15 @@ jobs:
           main = "_worker.js"
           compatibility_date = "2024-01-01"
           account_id = "$CLOUDFLARE_ACCOUNT_ID"
-          
-          [env.production]
-          name = "bpb-worker-panel"
-          
-          [env.staging]
-          name = "bpb-worker-panel-staging"
           EOF
-          
-          # 验证配置文件
-          log "验证 wrangler.toml 配置文件..."
-          if [ ! -f "wrangler.toml" ]; then
-            log "ERROR: wrangler.toml 配置文件创建失败"
-            exit 1
-          fi
-          
-          # 显示配置文件内容（调试用）
-          log "wrangler.toml 配置内容:"
-          cat wrangler.toml | sed 's/'"$CLOUDFLARE_ACCOUNT_ID"'/[ACCOUNT_ID_HIDDEN]/g'
-          
+
           # 部署 Worker
           log "部署 Worker 到 Cloudflare..."
-          wrangler deploy --env production --verbose
-          
-          DEPLOY_RESULT=$?
-          if [ $DEPLOY_RESULT -eq 0 ]; then
+          wrangler deploy
+
+          if [ $? -eq 0 ]; then
             log "✅ 成功部署到 Cloudflare Workers！"
-            log "Worker URL: https://bpb-worker-panel.your-subdomain.workers.dev"
           else
-            log "❌ 部署失败 (错误码: $DEPLOY_RESULT)，请检查:"
-            log "1. Cloudflare API Token 权限是否正确"
-            log "2. Account ID 是否正确"
-            log "3. Worker 名称是否已被占用"
-            log "4. _worker.js 文件是否有效"
+            log "❌ 部署失败"
             exit 1
           fi
